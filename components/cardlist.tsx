@@ -1,44 +1,44 @@
 import React, { Component } from 'react';
 import { StyleSheet, Text, View,  } from 'react-native';
-import { List, Badge, Card, Title, Paragraph, Colors } from 'react-native-paper';
+import { List, Badge, Card, Title, Paragraph, Colors, Divider } from 'react-native-paper';
 import {iCard, AllCards, Suit} from './allcards';
 
 const iconDict: { [key in Suit] : string} = {
-  [Suit.Army]: "folder",
-  [Suit.Artifact]: "folder",
+  [Suit.Army]: "flag",
+  [Suit.Artifact]: "diamond-stone",
   [Suit.Beast]: 'paw',
-  [Suit.Flame]: "local_fire_department",
-  [Suit.Flood]: "folder",
-  [Suit.Land]: "folder",
-  [Suit.Leader]: "folder",
-  [Suit.Weapon]: "folder",
-  [Suit.Weather]: "folder",
-  [Suit.Wild]: "folder",
-  [Suit.Wizard]: "folder",
+  [Suit.Flame]: "fire",
+  [Suit.Flood]: "water",
+  [Suit.Land]: "terrain",
+  [Suit.Leader]: "crown",
+  [Suit.Weapon]: "sword",
+  [Suit.Weather]: "apple-icloud",
+  [Suit.Wild]: "cards",
+  [Suit.Wizard]: "wizard-hat",
 
-  [Suit.Undead]: "folder",
-  [Suit.Outsider]: "folder",
-  [Suit.Building]: "folder",
+  [Suit.Undead]: "grave-stone",
+  [Suit.Outsider]: "account-cowboy-hat",
+  [Suit.Building]: "office-building",
+}
+
+function cardSelect () {
+
+
 }
 
 const CardList = () => (
-  <List.Section>
-    <List.Subheader></List.Subheader>
+    <Card>
     {
       AllCards.map((item: iCard, i: number) =>
-        <Card>
-          <Card.Content>
-            
-            <List.Item 
-              key={i} 
-              title={item.name}
-              left={() => <List.Icon color={Colors.blue500} icon={iconDict[item.suit]}/>}
-            />
-          </Card.Content>
+      <div>
+        <Card style={{backgroundColor:Colors.grey300}} onPress={cardSelect}>
+          <Card.Title key={i} title={item.name} left={() => <List.Icon color={Colors.black} icon={iconDict[item.suit]}/>} />
         </Card>
+        <Divider/>
+      </div>
       )
     }
-  </List.Section>
+    </Card>
 );
 
 export default CardList;
