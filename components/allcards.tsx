@@ -1,6 +1,6 @@
 
-
 export enum Suit {
+    None="None",
     Army="Army",
     Artifact="Artifact",
     Beast="Beast",
@@ -18,79 +18,194 @@ export enum Suit {
     Building="Building",
 }
 
-export interface iCard {
-    name : string,
-    suit : Suit,
-    strength : number,
-    score : (selectedcards: iCard[]) => any;
+
+export abstract class CardBase{
+    name = "";
+    suit = Suit.None;
+    strength = 0
+    score(selectedcards: Map<CardBase, [boolean, boolean, boolean, number]>): number {
+        return this.strength;
+    }
+
+    penalty(selectedcards: Map<CardBase, [boolean, boolean, boolean, number]>): Map<CardBase, [boolean, boolean, boolean, number]> {
+        return selectedcards
+    }
 }
 
 /* -------------- Beast --------------- */
 
-class DragonCard implements iCard {
+class DragonCard extends CardBase {
     name = "Dragon";
     suit = Suit.Beast;
     strength = 30;
-    score(selectedcards: iCard[]): number {
-        return this.strength;
+    score(selectedcards: Map<CardBase, [boolean, boolean, boolean, number]>): number {
+
+        // -40 Unless with a Wizard
+        for (var currentCard of selectedcards.keys()) {
+            let currentVals = selectedcards.get(currentCard)
+            if (currentVals == undefined) {throw Error("Could not find Value.")}
+            let [currentSelected, currentBlanked, currentCleared, currentscore] = currentVals
+
+            if (currentSelected && currentCard.suit === Suit.Wizard) {
+                return this.strength
+            }
+
+        }
+        return -40;
     }
+
+}
+
+class HydraCard extends CardBase {
+    name = "Hydra";
+    suit = Suit.Beast;
+    strength = 12;
+    score(selectedcards: Map<CardBase, [boolean, boolean, boolean, number]>): number {
+
+        let score = this.strength
+        // +28 when with Swamp
+        for (var cardAndSelected of selectedcards) {
+            let [currentCard, currentValsArr] = cardAndSelected;
+            let [selected, blanked, cleared, scoreVal] = currentValsArr;
+
+            if (selected && currentCard.name === "Swamp") {
+                score += 28
+                return score;
+            }
+
+        }
+        return score;
+    }
+}
+
+class WarHorseCard extends CardBase {
+    name = "War Horse";
+    suit = Suit.Beast;
+    strength = 6;
+    score(selectedcards: Map<CardBase, [boolean, boolean, boolean, number]>): number {
+
+        // +28 when with Swamp
+        var score = this.strength
+        for (var cardAndSelected of selectedcards) {
+            let [currentCard, currentValsArr] = cardAndSelected;
+            let [selected, blanked, cleared, scoreVal] = currentValsArr;
+            if (selected && (currentCard.suit === Suit.Leader || currentCard.suit === Suit.Wizard)) {
+                score += 14
+                return score;
+            }
+
+        }
+        return score;
+        
+    }
+}
+
+/* -------------- Wizards -----------*/
+
+class NecromancerCard extends CardBase {
+    name = "Necromancer";
+    suit = Suit.Wizard;
+    strength = 3;
 }
 
 /* -------------- Lands -----------*/
 
-class MountainCard implements iCard {
+class MountainCard extends CardBase {
     name = "Mountain";
     suit = Suit.Land;
     strength = 9;
-    score(selectedcards: iCard[]): number {
-        return this.strength;
-    }
+
 }
 
 /* -------------- Flood ---------------- */
 
-class GreatFloodCard implements iCard {
+class GreatFloodCard extends CardBase {
     name = "Great Flood";
     suit = Suit.Flood;
     strength = 32;
-    score(selectedcards: iCard[]): number {
-        return this.strength;
+    penalty(selectedMap: Map<CardBase, [boolean, boolean, boolean, number]>): Map<CardBase, [boolean, boolean, boolean, number]> {
+
+        var tempSelectedMap = selectedMap
+
+        // for (var cardAndSelected of selectedMap) {
+        //     let [currentCard, currentValsArr] = cardAndSelected;
+        //     let [selected, blanked, cleared, scoreVal] = currentValsArr;
+
+        //     if (currentCard.name == "Blizzard" && (blanked || !cleared))
+        //     {
+
+        //     }
+        // }
+
+        for (var cardAndSelected of selectedMap) {
+            let [currentCard, currentValsArr] = cardAndSelected;
+            let [selected, blanked, cleared, scoreVal] = currentValsArr;
+
+            if (selected && (
+                currentCard.suit == Suit.Army ||
+                currentCard.suit == Suit.Land ||
+                currentCard.suit == Suit.Flame) &&
+                currentCard.name != "Mountain" &&
+                currentCard.name != "Lightning")
+                selectedMap.set(currentCard, [selected, true, cleared, scoreVal])
+        }
+        return tempSelectedMap
     }
 }
 
 /* ------------ Flame ---------------- */
 
-class WildfireCard implements iCard {
+class WildfireCard extends CardBase {
     name = "Wildfire";
     suit = Suit.Flame;
     strength = 40;
-    score(selectedcards: iCard[]): number {
-        return this.strength;
+    penalty(selectedMap: Map<CardBase, [boolean, boolean, boolean, number]>): Map<CardBase, [boolean, boolean, boolean, number]> {
+
+        var tempSelectedMap = selectedMap
+
+        for (var cardAndSelected of selectedMap) {
+            let [currentCard, currentValsArr] = cardAndSelected;
+            let [selected, blanked, cleared, scoreVal] = currentValsArr;
+
+            if (selected && 
+                currentCard.name != "Mountain" &&
+                currentCard.name != "Great Flood" &&
+                currentCard.name != "Island" &&
+                currentCard.name != "Unicorn" &&
+                currentCard.name != "Dragon" &&
+                currentCard.suit != Suit.Flame &&
+                currentCard.suit != Suit.Wizard &&
+                currentCard.suit != Suit.Weather &&
+                currentCard.suit != Suit.Weapon &&
+                currentCard.suit != Suit.Artifact
+                )
+                tempSelectedMap.set(currentCard, [selected, true, cleared, scoreVal])
+        }
+        return tempSelectedMap
     }
 }
 
 /* ----------- Weather -------------- */
 
-class BlizzardCard implements iCard {
+class BlizzardCard extends CardBase {
     name = "Blizzard";
     suit = Suit.Weather;
     strength = 30;
-    score(selectedcards: iCard[]): number {
-        return this.strength;
-    }
+
 }
 
-class RainstormCard implements iCard {
+class RainstormCard extends CardBase {
     name = "Rainstorm";
     suit = Suit.Weather;
     strength = 8;
-    score(selectedcards: iCard[]): number {
-        return this.strength;
-    }
+
 }
 
 export const AllCards = [
     new DragonCard(),
+    new HydraCard(),
+    new WarHorseCard(),
+    new NecromancerCard(),
     new WildfireCard(),
     new GreatFloodCard(),
     new MountainCard(),
