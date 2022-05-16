@@ -2,6 +2,7 @@ import React, { Component, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { List, Badge, Card, Title, Paragraph, Colors, Divider, TextInput, Button  } from 'react-native-paper';
 import {AllCards, Suit, CardBase} from './allcards';
+import DropDown from "react-native-paper-dropdown";
 
 const iconDict: { [key in Suit] : string} = {
   [Suit.None]: "help",
@@ -23,120 +24,135 @@ const iconDict: { [key in Suit] : string} = {
 }
 
 
-const MakeSelectedDict = () => {
-  let selectedDict = new Map<CardBase, [boolean, boolean, boolean, number]>();
+const AddCardsToCardList = () => {
+  let cardlist: CardBase[] = [];
   for (var card of AllCards) {
-    selectedDict.set(card, [false, false, false, 0])
+    cardlist.push(card)
   }
-  return selectedDict
+  return cardlist
 }
 
 
 
 const CardList = () => {
-    const [selectedMap, SetSelectedMap] = useState(MakeSelectedDict())
+    const [cardlist, SetCardList] = useState(AddCardsToCardList())
     const [totalScore, SetScore] = useState(0)
+    const [showDropDown, setShowDropDown] = useState(false);
+    const [selectedIsland, setSelectedIsland] = useState("")
 
-    const changeSelected = (card: CardBase) => {
-      let tempSelectedMap = selectedMap
-      let currentVals = selectedMap.get(card)
-      if (currentVals == undefined) {return}
-      let [currentSelected, currentBlanked, currentCleared, currentscore] = currentVals
-      tempSelectedMap = new Map(tempSelectedMap.set(card, [!currentSelected , currentBlanked, currentCleared, currentscore]))
-      //SetSelectedMap(new Map(tempSelectedMap));
-      updateScore(tempSelectedMap)
+    var selectedIslandList :[{label: string, value: string}];
+    
+    const createIslandList = () => {
+      selectedIslandList = [{label: "", value: ""}]
+      for (var currentCard of cardlist) {
+        if (currentCard.suit == Suit.Flood || currentCard.suit == Suit.Flame) {
+          selectedIslandList.push({label: currentCard.name, value:currentCard.name})
+        }
+      }
+    }
+    createIslandList() 
+
+    const updateIslandDropdownValue = (islandVal:string) => {
+      setSelectedIsland(islandVal)
+
+      let newCardList = [...cardlist]
+      for (var currentCard of newCardList) {
+        if (currentCard.name == "Island") {
+          currentCard.specialSelectedCard = selectedIsland ?? ""
+        }
+      }
+
+      updateScore(newCardList)
     }
 
-    const updateScore = (tempSelectedMap: Map<CardBase, [boolean, boolean, boolean, number]>) => {
+    const changeSelected = (card: CardBase) => {
+      let currentCardIndex = cardlist.findIndex(search => search.name === card.name)
+      if (currentCardIndex == undefined) {return}
+
+      let newCardList = [...cardlist]
+      newCardList[currentCardIndex].selected = !newCardList[currentCardIndex].selected
+
+      //SetCardList(newCardList)
+      updateScore(newCardList)
+    }
+
+    const updateScore = (newCardList: CardBase[]) => {
 
       let sumScore = 0;
 
       /** Reset the blanking, cleared, and score values. */
-      for (var currentCard of selectedMap.keys()) {
-        let currentVals = selectedMap.get(currentCard)
-        if (currentVals == undefined) {return}
-        let [currentSelected, currentBlanked, currentCleared, currentscore] = currentVals        
-        tempSelectedMap = tempSelectedMap.set(currentCard, [currentSelected , false, false, 0])
+      for (var currentCard of newCardList) {
+        currentCard.reset()
       }
 
-      /** Run the penaltys */
-      for (var currentCard of selectedMap.keys()) {
-        let currentVals = selectedMap.get(currentCard)
-        if (currentVals == undefined) {return}
-        let [currentSelected, currentBlanked, currentCleared, currentscore] = currentVals        
-        if (currentSelected && !currentBlanked) 
-        {
-          currentCard.penalty(tempSelectedMap)
+
+
+      /** Reset the blanking, cleared, and score values. */
+      for (var currentCard of newCardList) {
+        if (currentCard.selected && !currentCard.blanked) 
+        { 
+          currentCard.clear(newCardList)
         }
       }
 
-      for (var currentCard of selectedMap.keys()) {
-        let currentVals = selectedMap.get(currentCard)
-        if (currentVals == undefined) {throw Error("Could not find Value.")}
-        let [currentSelected, currentBlanked, currentCleared, currentscore] = currentVals
-        if (currentSelected && !currentBlanked) 
+      /** Run the penaltys */
+      for (var currentCard of newCardList.sort((card1, card2) => card2.blankingPriority - card1.blankingPriority)) {     
+        if (currentCard.selected && !currentCard.blanked) 
+        { 
+          currentCard.penalty(newCardList)
+        }
+      }
+
+      for (var currentCard of newCardList) {
+
+        if (currentCard.selected && !currentCard.blanked) 
         {
-          let returnScore = currentCard.score(tempSelectedMap);
-          sumScore += returnScore;
-          tempSelectedMap = tempSelectedMap.set(currentCard, [currentSelected , currentBlanked, currentCleared, returnScore])
+          currentCard.updatescore(newCardList);
+          sumScore += currentCard.score;
         }
       }
 
       SetScore(sumScore)
-      SetSelectedMap(tempSelectedMap);
+      SetCardList(newCardList);
       
     }
 
     const clearSelected = () => {
-      SetSelectedMap(MakeSelectedDict());
+      SetCardList(AddCardsToCardList());
       SetScore(0)
     }
 
     /** Get the Style for the buttons based on selection value and blanking */ 
     const selectStyle = (card: CardBase) => {
-      let vals = selectedMap.get(card)
-      if (vals == null){
+      let currentCardIndex = cardlist.findIndex(search => search.name === card.name)
+      if (currentCardIndex == undefined) {
         return [styles.buttons, styles.errorButtons]
       }
-      let [selected, blanked, cleared, score] = vals
 
-
-
-      if(cleared && selected)
+      if(cardlist[currentCardIndex].selected)
       {
-        return [styles.buttons, styles.clearedButtons]
+        if(cardlist[currentCardIndex].blanked) {
+          return [styles.buttons, styles.blankedButtons]
+        }
+        else if(cardlist[currentCardIndex].cleared) {
+          return [styles.buttons, styles.clearedButtons]
+        }
+        else {
+          return [styles.buttons, styles.selectedButtons]
+        }
       }
-
-      else if(blanked && selected)
-      {
-        return [styles.buttons, styles.blankedButtons]
-      }
-      
-      else if(selected)
-      {
-        return [styles.buttons, styles.selectedButtons]
-      }
-      else
-      {
+      else {
         return [styles.buttons, styles.deselectedButtons]
       }
     }
 
     const getName = (card: CardBase) => {
-      var values = selectedMap.get(card)
-      if (values == null)
-      {
-        return "Cannot get name From map"
-      }
-      else if (values.length != 4)
-      {
-        return "Cannot unpack 4 values from state map."
-      }
+      let currentCardIndex = cardlist.findIndex(search => search.name === card.name)
+      if (currentCardIndex == undefined) {return}
 
-      let [currentSelected, currentBlanked, currentCleared, currentscore] = values
-      if (currentSelected)
+      if (cardlist[currentCardIndex].selected)
       {
-        return card.name + ": " + currentscore.toString()
+        return card.name + ": " + cardlist[currentCardIndex].score.toString()
       }
       else
       {
@@ -174,7 +190,7 @@ const CardList = () => {
       },
     
       buttons: {
-        flex: 0,
+        flex: -1,
         padding: 0,
         margin: 10,
       },
@@ -201,20 +217,43 @@ const CardList = () => {
     
     });
 
+    const InteractiveCard = (card: CardBase) => {
+      if(card.name === "Island") {
+        return (
+          <view>
+            {<DropDown
+              label='Cleared Flood or Flame'
+              visible = {showDropDown}
+              mode={"outlined"}
+              showDropDown={() => setShowDropDown(true)}
+              onDismiss={() => setShowDropDown(false)}
+              value={selectedIsland}
+              setValue={updateIslandDropdownValue}
+              list={selectedIslandList}
+            />}
+            
+          </view>
+        )
+      }
+
+      return <view/>
+    }
+
     return (
       <View style={styles.container}>
         <ScrollView>
         {
 
-          Array.from(selectedMap.keys()).map((item: CardBase, i: number) =>
-          //AllCards.map((item: CardBase, i: number) =>
-          <View>
-            <Card key={i} onPress={() => changeSelected(item)} style={selectStyle(item)}>
-              <Card.Title title={getName(item)} left={() => <List.Icon color={Colors.black} icon={iconDict[item.suit]}/>} />
+          //Array.from(selectedMap.keys()).map((item: CardBase, i: number) =>
+          cardlist.sort((card1, card2) => card1.suit.toString() < card2.suit.toString() ? -1 : 1).map((item: CardBase, i: number) =>
+          <View key={i}>
+            <Card onPress={() => changeSelected(item)} style={selectStyle(item)}>
+              <Card.Title title={getName(item)} left={() => <List.Icon color={Colors.black} icon={iconDict[item.suit]} />} />
+              
             </Card>
-
           </View>
           )
+          //right={(props) => InteractiveCard(item)} />
         }
         </ScrollView>
         <View style={styles.scoreView}>
